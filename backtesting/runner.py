@@ -13,7 +13,19 @@ from datetime import datetime, date
 import numpy as np
 from django.utils import timezone
 
-logger = logging.getLogger("backtesting")
+# Canonical limitation text — written to BacktestRun.limitations
+# and included in every report and UI display.
+_PIT_CONSENSUS_LIMITATION = (
+    "CONSENSUS IS NOT POINT-IN-TIME: "
+    "The consensus values used in this backtest are the values stored at "
+    "calendar ingestion time, not the values that existed at the simulated "
+    "forecast time. Trading Economics point-in-time consensus history requires "
+    "a premium subscription. "
+    "Surprise classification (ABOVE/NEAR/BELOW) may be slightly wrong for "
+    "releases where the consensus shifted materially before release day. "
+    "Direction-accuracy metrics should be treated as upper bounds. "
+    "BacktestResult.consensus_is_approximate=True for all results in this run."
+)
 
 
 def run_backtest(
@@ -68,6 +80,7 @@ def run_backtest(
         model_version=model_version,
         data_vintage_policy="strict_pit" if strict_pit else "lenient",
         status="running",
+        limitations=[_PIT_CONSENSUS_LIMITATION],
     )
 
     releases = list(
@@ -96,7 +109,7 @@ def run_backtest(
             # Simulate forecast at release time minus 1 hour
             simulated_time = release.release_time_utc - timezone.timedelta(hours=1)
             accessor = PointInTimeDataAccessor(as_of=simulated_time, strict=strict_pit)
-            consensus_at_cutoff = accessor.get_release_consensus(release)
+            consensus_at_cutoff, consensus_is_approximate = accessor.get_release_consensus(release)
 
             builder = _FEATURE_BUILDERS.get(event_code)
             if builder is None:
@@ -157,6 +170,7 @@ def run_backtest(
                     forecast_lower=model_result.lower_bound,
                     forecast_upper=model_result.upper_bound,
                     consensus_at_cutoff=consensus_at_cutoff,
+                    consensus_is_approximate=consensus_is_approximate,
                     actual=actual,
                     forecast_error=error,
                     surprise=float(actual) - float(consensus_at_cutoff)
@@ -178,6 +192,8 @@ def run_backtest(
     summary = compute_backtest_metrics(results_to_create)
     summary["errors"] = errors
     summary["n_releases"] = len(releases)
+    summary["consensus_is_approximate"] = True
+    summary["limitations"] = [_PIT_CONSENSUS_LIMITATION]
 
     run.status = "completed"
     run.completed_at = timezone.now()

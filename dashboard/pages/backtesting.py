@@ -74,6 +74,30 @@ def render():
     report = generate_backtest_report(selected_run)
 
     st.subheader(f"Results: {selected_run.name}")
+
+    # ── Known limitations — always shown before any metrics ──────────────────
+    limitations = report.get("limitations", [])
+    approx_count = report.get("consensus_approximate_count", 0)
+    n_results = report.get("n_results", 0)
+    approx_frac = report.get("consensus_approximate_fraction", 0.0)
+
+    if limitations:
+        with st.expander(
+            f"⚠️ {len(limitations)} Known Limitation(s) — read before interpreting results",
+            expanded=True,
+        ):
+            for lim in limitations:
+                st.warning(lim)
+            if approx_count > 0:
+                st.info(
+                    f"**{approx_count} of {n_results} results ({approx_frac:.0%}) "
+                    "use approximate (non-point-in-time) consensus values.** "
+                    "Surprise classification and direction accuracy may be slightly "
+                    "overstated for those results. "
+                    "The `consensus_is_approximate` flag is stored on every "
+                    "BacktestResult row so you can filter or down-weight them."
+                )
+
     col1, col2, col3 = st.columns(3)
     with col1:
         st.info(f"**Event:** {selected_run.event_code}")

@@ -3,6 +3,9 @@
 # requirements.txt
 # ============================================================
 
+# --- WSGI server (required by Dockerfile CMD) ---
+gunicorn==22.0.0
+
 # --- Core framework ---
 Django==5.0.7
 djangorestframework==3.15.2

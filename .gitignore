@@ -1,0 +1,78 @@
+# ============================================================
+# Red-Folder Forecasting Platform — .gitignore
+# ============================================================
+
+# --- Secrets — NEVER commit ---
+.env
+*.env
+.env.*
+!.env.example
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+wheels/
+pip-wheel-metadata/
+MANIFEST
+
+# --- Virtual environments ---
+venv/
+.venv/
+env/
+ENV/
+.env/
+virtualenv/
+
+# --- Django ---
+*.log
+logs/
+staticfiles/
+media/
+db.sqlite3
+test_db.sqlite3
+celerybeat-schedule
+celerybeat.pid
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+*.ipynb
+
+# --- pytest / coverage ---
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+.tox/
+nosetests.xml
+
+# --- mypy ---
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# --- IDE ---
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# --- Docker ---
+.dockerignore
+
+# --- OS ---
+desktop.ini

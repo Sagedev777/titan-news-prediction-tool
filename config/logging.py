@@ -3,6 +3,16 @@ Structured logging configuration for the forecasting platform.
 
 Uses structlog for structured JSON output in production and
 coloured console output in development (DEBUG=True).
+
+IMPORT SAFETY NOTE
+------------------
+This file is loaded by config/settings.py via importlib.util, NOT via the
+normal `import config.logging` path.  That is intentional: importing via the
+`config` package would trigger config/__init__.py which imports the Celery app
+mid-way through settings initialisation and causes a circular import.
+
+Do NOT add any import of `config`, `celery`, or any Django app module at the
+top level of this file.  Only stdlib imports are safe here.
 """
 
 from __future__ import annotations

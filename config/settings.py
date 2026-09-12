@@ -57,13 +57,13 @@ THIRD_PARTY_APPS = [
 ]
 
 LOCAL_APPS = [
-    "events",
-    "data_sources",
-    "macro_data",
-    "forecasting",
-    "market_reaction",
-    "backtesting",
-    "alerts",
+    "events.apps.EventsConfig",
+    "data_sources.apps.DataSourcesConfig",
+    "macro_data.apps.MacroDataConfig",
+    "forecasting.apps.ForecastingConfig",
+    "market_reaction.apps.MarketReactionConfig",
+    "backtesting.apps.BacktestingConfig",
+    "alerts.apps.AlertsConfig",
 ]
 
 INSTALLED_APPS = DJANGO_APPS + THIRD_PARTY_APPS + LOCAL_APPS
@@ -212,7 +212,20 @@ MARKET_DATA_MAX_AGE_MINUTES = env("MARKET_DATA_MAX_AGE_MINUTES")
 MACRO_DATA_MAX_AGE_DAYS = env("MACRO_DATA_MAX_AGE_DAYS")
 
 # ── Logging ───────────────────────────────────────────────────────────────────
-LOGGING_CONFIG = None  # Handled in config/logging.py
-import config.logging as _log_setup  # noqa: E402  — applied immediately
+# IMPORTANT: We use importlib to load config/logging.py directly rather than
+# importing via the `config` package (i.e. NOT `import config.logging`).
+# The `config` package __init__.py imports the Celery app, which itself
+# references Django settings — importing it mid-way through settings.py
+# would create a circular import.  importlib.util bypasses __init__.py
+# and loads only the logging module file.
+LOGGING_CONFIG = None  # Tell Django not to apply its default logging config.
 
-_log_setup.configure_logging(debug=DEBUG, base_dir=BASE_DIR)
+import importlib.util as _ilu
+import pathlib as _pl
+
+_logging_path = _pl.Path(__file__).parent / "logging.py"
+_logging_spec = _ilu.spec_from_file_location("config._logging_setup", _logging_path)
+_logging_mod = _ilu.module_from_spec(_logging_spec)
+_logging_spec.loader.exec_module(_logging_mod)
+_logging_mod.configure_logging(debug=DEBUG, base_dir=BASE_DIR)
+del _ilu, _pl, _logging_path, _logging_spec, _logging_mod  # keep namespace clean

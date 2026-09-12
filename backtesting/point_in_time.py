@@ -77,15 +77,65 @@ class PointInTimeDataAccessor:
             lookback_candles=lookback_candles,
         )
 
-    def get_release_consensus(self, release) -> float | None:
+    def get_release_consensus(self, release) -> tuple[float | None, bool]:
         """
-        Return the consensus value as it was known at as_of.
+        Return the consensus value to use in a backtest simulation.
 
-        For a strict backtest, this should be the consensus
-        at the time of the simulated forecast, not the final revised consensus.
-        Trading Economics provides historical consensus values only on
-        premium plans.  If unavailable, we use the stored consensus
-        and note the limitation.
+        Returns
+        -------
+        (consensus_value, is_approximate) tuple.
+
+        is_approximate=True means the consensus value is the CURRENT stored
+        value, NOT the value that existed at `as_of`.  This is an
+        approximation caused by a data-source limitation:
+
+        LIMITATION — CONSENSUS IS NOT POINT-IN-TIME
+        -------------------------------------------
+        Trading Economics provides historical consensus snapshots only on
+        premium subscription plans.  On the free/standard tier (and when
+        no provider-level PIT consensus data is stored in our database),
+        we fall back to the consensus value stored at ingestion time.
+
+        Impact on backtest accuracy:
+        - Consensus values typically change by small amounts in the days
+          before a release, so the bias is usually small.
+        - Surprise classification (ABOVE/NEAR/BELOW) relative to consensus
+          may be slightly wrong for releases where the consensus shifted
+          materially before release day.
+        - The BacktestResult.consensus_is_approximate flag is set to True
+          for every result produced with this fallback, so you can filter
+          or weight results accordingly.
+        - Backtest direction-accuracy metrics should be interpreted as
+          upper bounds when this flag is True.
+
+        This limitation is recorded in:
+        - BacktestResult.consensus_is_approximate
+        - BacktestRun.summary["limitations"]
+        - The dashboard backtesting page warning banner
+        - Log messages at WARNING level
         """
-        # TODO: implement with provider-specific PIT consensus if available
-        return float(release.consensus) if release.consensus is not None else None
+        if release.consensus is None:
+            logger.warning(
+                "get_release_consensus: release %s (%s) has no stored consensus. "
+                "Cannot compute surprise. consensus_is_approximate=True.",
+                release.id,
+                getattr(release.event, "code", "?"),
+            )
+            return None, True
+
+        # No PIT consensus data available — using current stored value.
+        # Log at WARNING so operators see this in the log stream.
+        logger.warning(
+            "get_release_consensus: using APPROXIMATE consensus for release %s (%s) "
+            "as_of=%s. "
+            "Reason: no point-in-time consensus history available on the current "
+            "Trading Economics plan. "
+            "The stored consensus (%.4f) is the value at last ingestion, not "
+            "necessarily the value that existed at the simulated forecast time. "
+            "Set BacktestResult.consensus_is_approximate=True.",
+            release.id,
+            getattr(release.event, "code", "?"),
+            self.as_of.isoformat(),
+            float(release.consensus),
+        )
+        return float(release.consensus), True

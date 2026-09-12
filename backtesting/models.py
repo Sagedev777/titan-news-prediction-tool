@@ -19,6 +19,14 @@ class BacktestRun(models.Model):
     created_at = models.DateTimeField(default=timezone.now)
     completed_at = models.DateTimeField(null=True, blank=True)
     summary = models.JSONField(default=dict)
+    limitations = models.JSONField(
+        default=list,
+        help_text=(
+            "List of known data-quality limitations that affect the accuracy of "
+            "this backtest.  Each entry is a plain-English description. "
+            "Always read this before interpreting the results."
+        ),
+    )
 
     class Meta:
         ordering = ["-created_at"]
@@ -36,6 +44,18 @@ class BacktestResult(models.Model):
     forecast_lower = models.FloatField(null=True, blank=True)
     forecast_upper = models.FloatField(null=True, blank=True)
     consensus_at_cutoff = models.FloatField(null=True, blank=True)
+    consensus_is_approximate = models.BooleanField(
+        default=True,
+        help_text=(
+            "True when consensus_at_cutoff is the current stored value rather than "
+            "the historically-correct value at the simulated forecast time. "
+            "This is the case whenever point-in-time consensus history is not "
+            "available from the calendar provider (e.g. Trading Economics free tier). "
+            "Results where this is True should be interpreted with caution: "
+            "surprise classification (ABOVE/NEAR/BELOW) may be slightly wrong "
+            "if the consensus shifted materially before release day."
+        ),
+    )
     actual = models.FloatField(null=True, blank=True)
     forecast_error = models.FloatField(null=True, blank=True)
     surprise = models.FloatField(null=True, blank=True)
