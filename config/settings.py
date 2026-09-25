@@ -29,7 +29,42 @@ env = environ.Env(
     MACRO_DATA_MAX_AGE_DAYS=(int, 2),
 )
 
-environ.Env.read_env(BASE_DIR / ".env")
+# ── Environment file selection ────────────────────────────────────────────────
+# If the ENV_FILE environment variable is set, load that file instead of .env.
+# This lets you switch between configurations without touching the real .env:
+#
+#   PowerShell:  $env:ENV_FILE = ".env.sqlite"
+#   Bash:        export ENV_FILE=.env.sqlite
+#
+# Rules:
+#  1. If ENV_FILE is set, load that file. If it does not exist, raise an error.
+#  2. If ENV_FILE is not set, load .env (production default).
+#  3. If neither file exists, settings load from environment variables only
+#     (useful for Docker / CI where vars are injected directly).
+#  4. This setting never prints secrets. It only logs the filename chosen.
+
+_env_file_override = os.environ.get("ENV_FILE", "")
+if _env_file_override:
+    _env_path = BASE_DIR / _env_file_override
+    if not _env_path.exists():
+        raise FileNotFoundError(
+            f"ENV_FILE is set to {_env_file_override!r} "
+            f"but the file does not exist at {_env_path}. "
+            "Create the file or unset ENV_FILE."
+        )
+    environ.Env.read_env(_env_path)
+    _active_env_file = str(_env_path)
+else:
+    _default_env = BASE_DIR / ".env"
+    if _default_env.exists():
+        environ.Env.read_env(_default_env)
+        _active_env_file = str(_default_env)
+    else:
+        # No .env file — rely entirely on process environment variables.
+        _active_env_file = "(none — using process environment variables)"
+
+import logging as _logging
+_logging.getLogger("config").info("Active environment file: %s", _active_env_file)
 
 # ── Security ──────────────────────────────────────────────────────────────────
 SECRET_KEY = env("DJANGO_SECRET_KEY")

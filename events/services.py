@@ -151,10 +151,10 @@ def upsert_economic_event(
     logger.info(
         "upsert_economic_event",
         extra={
-            "code": code,
+            "event_code": code,
             "normalized_impact": normalized,
             "is_allowlisted": event.is_allowlisted,
-            "created": created,
+            "was_created": created,
         },
     )
 
